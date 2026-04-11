@@ -1,0 +1,111 @@
+name: email-triage-env
+version: "1.0.0"
+description: >
+  Real-world email triage environment for training and evaluating AI agents.
+  Agents must classify emails into categories, assign urgency priorities,
+  draft professional responses, and manage unsubscribes — mirroring a
+  genuine daily task for knowledge workers.
+author: marib-hackathon
+license: MIT
+tags:
+  - openenv
+  - email
+  - triage
+  - nlp
+  - real-world
+
+tasks:
+  - id: categorize-single
+    name: "Email Categorization"
+    difficulty: easy
+    description: >
+      Classify 5 distinct emails into the correct folder.
+      Graded on category accuracy only. Good first task for new agents.
+    max_steps: 5
+    scoring: mean_reward
+    reward_range: [0.0, 1.0]
+
+  - id: inbox-triage
+    name: "Inbox Triage"
+    difficulty: medium
+    description: >
+      Triage a realistic 10-email inbox by both categorizing and
+      prioritizing each email (1=critical → 5=ignore).
+      Graded on 50% category accuracy + 50% priority accuracy.
+    max_steps: 10
+    scoring: mean_reward
+    reward_range: [0.0, 1.0]
+
+  - id: full-inbox-manager
+    name: "Full Inbox Manager"
+    difficulty: hard
+    description: >
+      Full inbox management across 15 emails. Agent must categorize,
+      prioritize, draft professional responses where needed, and correctly
+      decide which senders to unsubscribe from.
+      Graded on 30% category + 30% priority + 30% response quality + 10% unsubscribe.
+    max_steps: 15
+    scoring: mean_reward
+    reward_range: [0.0, 1.0]
+
+server:
+  host: "0.0.0.0"
+  port: 7860
+  endpoints:
+    reset:  "POST /reset"
+    step:   "POST /step"
+    state:  "GET  /state"
+    health: "GET  /health"
+
+observation_space:
+  type: object
+  properties:
+    current_email:
+      type: object
+      nullable: true
+      properties:
+        id:             { type: string }
+        sender:         { type: string }
+        sender_email:   { type: string }
+        subject:        { type: string }
+        body:           { type: string }
+        timestamp:      { type: string, format: date-time }
+        has_attachment: { type: boolean }
+    emails_remaining:  { type: integer, minimum: 0 }
+    emails_processed:  { type: integer, minimum: 0 }
+    total_emails:      { type: integer, minimum: 0 }
+    episode_reward:    { type: number }
+    step:              { type: integer }
+    task_name:         { type: string }
+    context:           { type: object }
+
+action_space:
+  type: object
+  required: [category, priority]
+  properties:
+    category:
+      type: string
+      enum: [spam, work, personal, newsletter, important, social]
+    priority:
+      type: integer
+      minimum: 1
+      maximum: 5
+    respond:
+      type: boolean
+      default: false
+    response_draft:
+      type: string
+      nullable: true
+    unsubscribe:
+      type: boolean
+      default: false
+
+reward:
+  type: number
+  minimum: 0.0
+  maximum: 1.0
+  description: >
+    Per-step composite score. Breakdown available in step info.
+    Easy: category accuracy.
+    Medium: 0.5 * category + 0.5 * priority.
+    Hard: 0.3 * category + 0.3 * priority + 0.3 * response_quality + 0.1 * unsubscribe.
